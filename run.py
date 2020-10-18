@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 from PyPDF2 import PdfFileReader, PdfFileWriter
 from PIL import Image
 
@@ -8,27 +9,29 @@ def jpg2pdf(src, dst):
     pdf1_filename = dst
     im1.save(pdf1_filename, "PDF" ,resolution=100.0, save_all=True)
 
-def add_cover(cover, main_list, output_name, start_page=1):
+def merge_pdf(cover, main_list, output_name, start_page=1):
     def get_page_size():
         with open(main_list[0], 'rb') as fp:
             pdf = PdfFileReader(fp)
             return pdf.getPage(0).mediaBox
+    def make_page_start_map(pdf_list):
+        page_start_map = [0] * len(pdf_list)
+        page_start_map[1] = start_page
+        return page_start_map
+
     _, _, upleft, upright = get_page_size()
 
-    cover_pdf = PdfFileReader(open(cover, 'rb'))
-
-    pdf = PdfFileReader(open(main_list[0], 'rb'))
+    pdf_list = [cover_pdf, *main_list]
+    page_start_map = make_page_start_map(pdf_list)
+    pdf_reader_list = [PdfFileReader(open(pdf_item, 'rb')) for pdf_item in pdf_list]
 
     pdf_writer = PdfFileWriter()
 
-    scaled_cover = cover_pdf.getPage(0)
-    scaled_cover.scaleTo(int(upleft), int(upright))
-    pdf_writer.addPage(scaled_cover)
-
-    for page in range(start_page, pdf.getNumPages()):
-        page_obj = pdf.getPage(page)
-        page_obj.scaleTo(int(upleft), int(upright))
-        pdf_writer.addPage(page_obj)
+    for i, pdf_reader in enumerate(pdf_reader_list):
+        for page in range(page_start_map[i], pdf_reader.getNumPages()):
+            page_obj = pdf_reader.getPage(page)
+            page_obj.scaleTo(int(upleft), int(upright))
+            pdf_writer.addPage(page_obj)
 
     with open(output_name, 'wb') as f:
         pdf_writer.write(f)
@@ -41,10 +44,16 @@ def print_page_info(filename):
             print("{}, {}, {}, {}".format(lowleft, lowright, upleft, upright))
 
 def cover_preprocess(cover_image):
+    workdir = 'tmp'
+    if not os.path.exists(workdir):
+        os.mkdir(workdir)
+
+    to = "{}/{}".format(workdir, os.path.split(cover_image)[1])
     if os.path.splitext(cover_image)[1] == '.pdf':
-        return cover_image
+        shutil.copy(cover_image, to)
+        return to
     else:
-        cover_pdf = '{}.pdf'.format(os.path.splitext(cover_image)[0])
+        cover_pdf = '{}.pdf'.format(os.path.splitext(to)[0])
         jpg2pdf(cover_image, cover_pdf)
         return cover_pdf
 
@@ -66,6 +75,6 @@ for main_pdf in main_pdf_list:
 
 cover_pdf = cover_preprocess(cover_image)
 
-add_cover(cover_pdf, main_pdf_list, output_name)
+merge_pdf(cover_pdf, main_pdf_list, output_name)
 
 print_page_info(output_name)
