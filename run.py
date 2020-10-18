@@ -29,10 +29,12 @@ def merge_pdf(cover, main_list, output_name, start_page=1):
 
     for i, pdf_reader in enumerate(pdf_reader_list):
         for page in range(page_start_map[i], pdf_reader.getNumPages()):
+            print("processing {}:{}".format(pdf_list[i], page))
             page_obj = pdf_reader.getPage(page)
             page_obj.scaleTo(int(upleft), int(upright))
             pdf_writer.addPage(page_obj)
 
+    print("write pdf object to {}".format(output_name))
     with open(output_name, 'wb') as f:
         pdf_writer.write(f)
 
@@ -57,31 +59,33 @@ def cover_preprocess(cover_image):
         jpg2pdf(cover_image, cover_pdf)
         return cover_pdf
 
-if(len(sys.argv) == 1):
-    print("usage:")
+if(len(sys.argv) < 2):
     print("Add cover page and merge pdf files")
     print("first page of first pdf file is replaced to cover page")
     print("")
+    print("usage:")
     print("    python run.py output_name cover_page pdf1 pdf2 pdf3 ...")
-    print("    ex) python run.py output\out2.pdf input\22334307.jpg input\sample.pdf input\dummy.pdf")
+    print("    ex) python run.py output/out2.pdf input/22334307.jpg input/sample.pdf input/dummy.pdf")
+    exit(0)
+
 output_name = sys.argv[1]
 if os.path.exists(output_name):
-    print("output({}) already exists".format(output_name))
+    print("Error> output({}) already exists".format(output_name))
     exit(0)
 
 cover_image = sys.argv[2]
 if not os.path.exists(cover_image):
-    print("cover image does not exists")
+    print("Error> cover image({}) does not exists".format(cover_image))
     exit(-1)
 
 main_pdf_list = sys.argv[3:]
 for main_pdf in main_pdf_list:
     if not os.path.exists(main_pdf):
-        print("pdf does not exists")
+        print("Error> pdf({}) does not exists".format(main_pdf))
         exit(-1)
 
 cover_pdf = cover_preprocess(cover_image)
 
 merge_pdf(cover_pdf, main_pdf_list, output_name)
 
-print_page_info(output_name)
+##print_page_info(output_name)
